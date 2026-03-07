@@ -24,7 +24,7 @@ def generate_caption(topic: str = None) -> tuple[str, str]:
         topic = random.choice(TOPICS)
 
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5",
         max_tokens=400,
         system=BRAND_VOICE,
         messages=[
