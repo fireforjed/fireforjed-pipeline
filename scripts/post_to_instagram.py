@@ -39,6 +39,11 @@ def post_to_instagram(image_path: str, caption: str) -> str:
             'access_token': ACCESS_TOKEN
         }
     )
+    if not container_resp.ok:
+        logger.error(
+            f'Container creation failed [{container_resp.status_code}]: '
+            f'{container_resp.text}'
+        )
     container_resp.raise_for_status()
     container_id = container_resp.json()['id']
     logger.info(f'Container created: {container_id}')
@@ -54,5 +59,10 @@ def post_to_instagram(image_path: str, caption: str) -> str:
             'access_token': ACCESS_TOKEN
         }
     )
+    if not publish_resp.ok:
+        logger.error(
+            f'Publish failed [{publish_resp.status_code}]: '
+            f'{publish_resp.text}'
+        )
     publish_resp.raise_for_status()
     return publish_resp.json()['id']
