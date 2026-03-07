@@ -1,0 +1,47 @@
+name: Fire Forjed Auto-Post
+
+on:
+  schedule:
+    - cron: '0 14 * * *'   # Daily at 9am EST
+    - cron: '0 19 * * *'   # Daily at 2pm EST
+  workflow_dispatch:
+    inputs:
+      topic_override:
+        description: 'Override the post topic (optional)'
+        required: false
+        default: ''
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          IMGBB_API_KEY: ${{ secrets.IMGBB_API_KEY }}
+          TOPIC_OVERRIDE: ${{ github.event.inputs.topic_override }}
+        run: python main.py
+
+      - name: Upload image artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-post
+          path: output/
+          retention-days: 3
