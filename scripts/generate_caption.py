@@ -27,7 +27,19 @@ def generate_caption(topic: str = None) -> tuple[str, str]:
                 )
             }]
         )
-        data = json.loads(message.content[0].text)
+        raw = message.content[0].text
+        # Strip markdown code blocks if present
+        if "```" in raw:
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        # Extract first JSON object in case there's surrounding text
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        if start == -1 or end == 0:
+            raise ValueError(f"No JSON object found in response: {raw!r}")
+        raw = raw[start:end]
+        data = json.loads(raw)
         return data['caption'], data['hashtags']
     except Exception as e:
         print(f"DETAILED ERROR: {type(e).__name__}: {e}")
