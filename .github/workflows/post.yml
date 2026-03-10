@@ -25,10 +25,8 @@ jobs:
 
       - name: Install Oswald font
         run: |
-          wget -q "https://fonts.google.com/download?family=Oswald" -O oswald.zip
-          unzip -q oswald.zip -d oswald_font
           mkdir -p assets/fonts
-          cp oswald_font/static/Oswald-Bold.ttf assets/fonts/Oswald-Bold.ttf
+          wget -q "https://github.com/google/fonts/raw/main/ofl/oswald/static/Oswald-Bold.ttf" -O assets/fonts/Oswald-Bold.ttf
 
       - name: Install dependencies
         run: pip install -r requirements.txt
