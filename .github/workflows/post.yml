@@ -1,5 +1,4 @@
 name: Fire Forjed Auto-Post
-
 on:
   schedule:
     - cron: '0 14 * * *'   # Daily at 9am EST
@@ -10,12 +9,10 @@ on:
         description: 'Override the post topic (optional)'
         required: false
         default: ''
-
 jobs:
   post:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,6 +22,13 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
+
+      - name: Install Oswald font
+        run: |
+          wget -q "https://fonts.google.com/download?family=Oswald" -O oswald.zip
+          unzip -q oswald.zip -d oswald_font
+          mkdir -p assets/fonts
+          cp oswald_font/static/Oswald-Bold.ttf assets/fonts/Oswald-Bold.ttf
 
       - name: Install dependencies
         run: pip install -r requirements.txt
