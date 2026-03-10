@@ -23,11 +23,6 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install Oswald font
-        run: |
-          mkdir -p assets/fonts
-          wget -q "https://github.com/google/fonts/raw/main/ofl/oswald/static/Oswald-Bold.ttf" -O assets/fonts/Oswald-Bold.ttf
-
       - name: Install dependencies
         run: pip install -r requirements.txt
 
