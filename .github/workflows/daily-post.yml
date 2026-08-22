@@ -2,10 +2,14 @@ name: Daily Forjed Post
 
 on:
   schedule:
-    # 3:00 PM UTC daily. Adjust the hour to whatever local time works for
-    # you -- note this is a fixed UTC time, so it will drift by an hour
-    # relative to local time across daylight saving changes.
-    - cron: "0 15 * * *"
+    # 4:00 AM Pacific. GitHub Actions cron runs on fixed UTC time, and
+    # Pacific shifts between UTC-7 (PDT, roughly Mar-Nov) and UTC-8 (PST,
+    # roughly Nov-Mar). This is currently set for PDT (UTC-7), i.e. 11:00
+    # UTC = 4:00 AM PDT. When clocks fall back in November, this will
+    # start firing at 3:00 AM Pacific instead of 4:00 -- change the "11"
+    # below to "12" at that point (and back to "11" in spring) if you
+    # want to keep it pinned to exactly 4:00 AM local time year-round.
+    - cron: "0 11 * * *"
   workflow_dispatch: {}  # lets you trigger a run manually from the Actions tab
 
 permissions:

@@ -23,15 +23,26 @@ GRAPH_API_VERSION = "v21.0"
 GRAPH_API_BASE = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
 
 
+def _post(url, data):
+    resp = requests.post(url, data=data, timeout=30)
+    if not resp.ok:
+        raise RuntimeError(f"{resp.status_code} error for {url}\nResponse body: {resp.text}")
+    return resp.json()
+
+
+def _get(url, params):
+    resp = requests.get(url, params=params, timeout=30)
+    if not resp.ok:
+        raise RuntimeError(f"{resp.status_code} error for {url}\nResponse body: {resp.text}")
+    return resp.json()
+
+
 def post_to_facebook(image_url, caption, page_id, page_access_token):
     url = f"{GRAPH_API_BASE}/{page_id}/photos"
-    resp = requests.post(
+    result = _post(
         url,
         data={"url": image_url, "caption": caption, "access_token": page_access_token},
-        timeout=30,
     )
-    resp.raise_for_status()
-    result = resp.json()
     print(f"Facebook post successful. Post ID: {result.get('post_id') or result.get('id')}")
     return result
 
@@ -39,24 +50,17 @@ def post_to_facebook(image_url, caption, page_id, page_access_token):
 def post_to_instagram(image_url, caption, ig_user_id, ig_access_token):
     # Step 1: create a media container
     create_url = f"{GRAPH_API_BASE}/{ig_user_id}/media"
-    resp = requests.post(
+    result = _post(
         create_url,
         data={"image_url": image_url, "caption": caption, "access_token": ig_access_token},
-        timeout=30,
     )
-    resp.raise_for_status()
-    creation_id = resp.json()["id"]
+    creation_id = result["id"]
 
     # Step 2: poll until the container has finished processing
     status_url = f"{GRAPH_API_BASE}/{creation_id}"
     for _ in range(10):
-        status_resp = requests.get(
-            status_url,
-            params={"fields": "status_code", "access_token": ig_access_token},
-            timeout=30,
-        )
-        status_resp.raise_for_status()
-        if status_resp.json().get("status_code") == "FINISHED":
+        status = _get(status_url, params={"fields": "status_code", "access_token": ig_access_token})
+        if status.get("status_code") == "FINISHED":
             break
         time.sleep(3)
     else:
@@ -64,13 +68,7 @@ def post_to_instagram(image_url, caption, ig_user_id, ig_access_token):
 
     # Step 3: publish it
     publish_url = f"{GRAPH_API_BASE}/{ig_user_id}/media_publish"
-    publish_resp = requests.post(
-        publish_url,
-        data={"creation_id": creation_id, "access_token": ig_access_token},
-        timeout=30,
-    )
-    publish_resp.raise_for_status()
-    result = publish_resp.json()
+    result = _post(publish_url, data={"creation_id": creation_id, "access_token": ig_access_token})
     print(f"Instagram post successful. Media ID: {result.get('id')}")
     return result
 
