@@ -1,0 +1,51 @@
+name: Daily Forjed Post
+
+on:
+  schedule:
+    # 3:00 PM UTC daily. Adjust the hour to whatever local time works for
+    # you -- note this is a fixed UTC time, so it will drift by an hour
+    # relative to local time across daylight saving changes.
+    - cron: "0 15 * * *"
+  workflow_dispatch: {}  # lets you trigger a run manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate post image
+        id: generate
+        run: python scripts/generate_post.py
+
+      - name: Commit and push generated image + updated state
+        run: |
+          git config user.name "forjed-bot"
+          git config user.email "forjed-bot@users.noreply.github.com"
+          git add posts/ quote_state.json
+          git commit -m "Auto-post: Quote ${{ steps.generate.outputs.quote_id }}"
+          git push
+
+      - name: Publish to Facebook and Instagram
+        env:
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IMAGE_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/posts/${{ steps.generate.outputs.image_filename }}
+          CAPTION: ${{ steps.generate.outputs.caption }}
+        run: python scripts/publish_post.py
