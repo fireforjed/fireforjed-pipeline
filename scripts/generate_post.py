@@ -25,6 +25,7 @@ FIXED_HASHTAGS = ["#forjed", "#getforjed"]
 
 # ---- Paths --------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
+TIPS_XLSX = ROOT / "tips.xlsx"
 TIPS_CSV = ROOT / "tips.csv"
 STATE_FILE = ROOT / "quote_state.json"
 BACKGROUND_IMAGE = ROOT / "assets" / "backgrounds" / "background.png"
@@ -41,14 +42,46 @@ HORIZONTAL_MARGIN = 100  # px of padding on each side
 VERTICAL_MARGIN = 100
 
 
-def load_tips():
-    with open(TIPS_CSV, newline="", encoding="utf-8-sig") as f:
-        rows = list(csv.DictReader(f))
+def load_tips_from_xlsx(path):
+    from openpyxl import load_workbook
+
+    wb = load_workbook(path, data_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
     if not rows:
-        raise RuntimeError("tips.csv is empty")
+        raise RuntimeError(f"{path.name} appears to be empty")
+
+    headers = [str(h).strip() if h is not None else "" for h in rows[0]]
+    tips = []
+    for row in rows[1:]:
+        if all(cell is None for cell in row):
+            continue  # skip blank rows
+        tip = {h: ("" if v is None else str(v).strip()) for h, v in zip(headers, row)}
+        tips.append(tip)
+    return tips
+
+
+def load_tips_from_csv(path):
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+
+def load_tips():
+    if TIPS_XLSX.exists():
+        rows = load_tips_from_xlsx(TIPS_XLSX)
+    elif TIPS_CSV.exists():
+        rows = load_tips_from_csv(TIPS_CSV)
+    else:
+        raise FileNotFoundError(
+            f"No tips file found. Expected either {TIPS_XLSX.name} or {TIPS_CSV.name} "
+            f"at the repo root."
+        )
+
+    if not rows:
+        raise RuntimeError("Tips file is empty")
     missing = {"Quote ID", "Quote", "Caption"} - set(rows[0].keys())
     if missing:
-        raise RuntimeError(f"tips.csv is missing expected column(s): {missing}")
+        raise RuntimeError(f"Tips file is missing expected column(s): {missing}")
     return rows
 
 
