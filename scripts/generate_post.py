@@ -78,7 +78,7 @@ def load_tips():
 
     if not rows:
         raise RuntimeError("Tips file is empty")
-    missing = {"Quote ID", "Quote", "Caption"} - set(rows[0].keys())
+    missing = {"Post No.", "Quote", "Caption"} - set(rows[0].keys())
     if missing:
         raise RuntimeError(f"Tips file is missing expected column(s): {missing}")
     return rows
@@ -118,7 +118,7 @@ def build_post_text(tip):
     """'Post #0001', then the Caption, then a hashtag line: fixed tags
     (#forjed #getforjed + fire emojis) followed by Theme/Secondary Theme
     hashtags. Source Insight is no longer included."""
-    post_number = format_post_number(tip.get("Quote ID", ""))
+    post_number = format_post_number(tip.get("Post No.", ""))
     caption = (tip.get("Caption") or "").strip()
     theme_tag = theme_to_hashtag(tip.get("Theme", ""))
     secondary_tag = theme_to_hashtag(tip.get("Secondary Theme", ""))
@@ -144,17 +144,17 @@ def pick_next_tip(tips, state):
     Once every quote has been used, the cycle resets and starts again
     from the lowest Quote ID."""
     used = set(state.get("used_quote_ids", []))
-    unused = [t for t in tips if t["Quote ID"] not in used]
+    unused = [t for t in tips if t["Post No."] not in used]
 
     if not unused:
         # Every quote has been used -- start a fresh cycle from the top.
         used = set()
         unused = tips
 
-    unused_sorted = sorted(unused, key=lambda t: _sort_key(t["Quote ID"]))
+    unused_sorted = sorted(unused, key=lambda t: _sort_key(t["Post No."]))
     chosen = unused_sorted[0]
 
-    used.add(chosen["Quote ID"])
+    used.add(chosen["Post No."])
     state["used_quote_ids"] = sorted(used, key=_sort_key)
     return chosen, state
 
@@ -252,7 +252,7 @@ def main():
     state = load_state()
     tip, state = pick_next_tip(tips, state)
 
-    quote_id = tip["Quote ID"]
+    quote_id = tip["Post No."]
     quote_text = tip["Quote"]
     caption = build_post_text(tip)
 
