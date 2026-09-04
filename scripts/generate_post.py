@@ -127,7 +127,7 @@ def build_post_text(tip):
     hashtag_parts += list(FIXED_HASHTAGS) + ["\U0001F525\U0001F525"]
     hashtag_line = " ".join(hashtag_parts)
 
-    return f"Post #{post_number}\n\n{caption}\n\n{hashtag_line}"
+    return f"Post No. {post_number}\n\n{caption}\n\n{hashtag_line}"
 
 
 def _sort_key(quote_id):
