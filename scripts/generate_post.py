@@ -20,7 +20,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 # Hashtags included on every single post, regardless of Theme.
-FIXED_HASHTAGS = ["#forjed", "#getforjed"]
+FIXED_HASHTAGS = ["#executivemindset", "#forjed", "#getforjed"]
 
 # ---- Paths --------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
@@ -123,8 +123,8 @@ def build_post_text(tip):
     theme_tag = theme_to_hashtag(tip.get("Theme", ""))
     secondary_tag = theme_to_hashtag(tip.get("Secondary Theme", ""))
 
-    hashtag_parts = list(FIXED_HASHTAGS) + ["\U0001F525\U0001F525"]
-    hashtag_parts += [t for t in (theme_tag, secondary_tag) if t]
+    hashtag_parts = [t for t in (theme_tag, secondary_tag) if t]
+    hashtag_parts += list(FIXED_HASHTAGS) + ["\U0001F525\U0001F525"]
     hashtag_line = " ".join(hashtag_parts)
 
     return f"Post #{post_number}\n\n{caption}\n\n{hashtag_line}"
