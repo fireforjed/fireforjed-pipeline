@@ -1,10 +1,11 @@
 """
 generate_post.py -- Step 1 of the Forjed daily posting pipeline.
 
-Picks the next unused Quote/Caption pair from tips.csv, overlays the
-Quote text onto the single Forjed background image, and saves the
-result to posts/. Also updates quote_state.json to mark that quote as
-used (the cycle resets automatically once every quote has been used).
+Picks the next not-yet-used Quote/Caption pair from tips.xlsx (in strict
+sequential order by Quote ID, skipping any already used), overlays the
+Quote text onto the single Forjed background image, and saves the result
+to posts/. Also updates quote_state.json to mark that quote as used (the
+cycle resets automatically once every quote has been used).
 
 Outputs (for the GitHub Actions workflow to pick up) are written to
 $GITHUB_OUTPUT: quote_id, image_filename, caption
@@ -13,14 +14,12 @@ $GITHUB_OUTPUT: quote_id, image_filename, caption
 import csv
 import json
 import os
-import random
 import re
-import textwrap
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-# Hashtags appended to every single post, regardless of Theme.
+# Hashtags included on every single post, regardless of Theme.
 FIXED_HASHTAGS = ["#forjed", "#getforjed"]
 
 # ---- Paths --------------------------------------------------------------
@@ -107,37 +106,56 @@ def theme_to_hashtag(theme):
     return f"#{tag}" if tag else None
 
 
+def format_post_number(quote_id):
+    """'1' -> '0001'. Leaves already-formatted or non-numeric IDs alone."""
+    quote_id = (quote_id or "").strip()
+    if quote_id.isdigit():
+        return quote_id.zfill(4)
+    return quote_id
+
+
 def build_post_text(tip):
-    """Caption, then a hashtag line (Theme + Secondary Theme + fixed tags),
-    then Source Insight -- each separated by a blank line. Missing pieces
-    (blank Theme, no Source Insight, etc.) are simply skipped."""
+    """'Post #0001', then the Caption, then a hashtag line: fixed tags
+    (#forjed #getforjed + fire emojis) followed by Theme/Secondary Theme
+    hashtags. Source Insight is no longer included."""
+    post_number = format_post_number(tip.get("Quote ID", ""))
     caption = (tip.get("Caption") or "").strip()
     theme_tag = theme_to_hashtag(tip.get("Theme", ""))
     secondary_tag = theme_to_hashtag(tip.get("Secondary Theme", ""))
-    source_insight = (tip.get("Source Insight") or "").strip()
 
-    hashtags = [t for t in (theme_tag, secondary_tag) if t] + FIXED_HASHTAGS
-    hashtag_line = " ".join(hashtags) + " \U0001F525\U0001F525"
+    hashtag_parts = list(FIXED_HASHTAGS) + ["\U0001F525\U0001F525"]
+    hashtag_parts += [t for t in (theme_tag, secondary_tag) if t]
+    hashtag_line = " ".join(hashtag_parts)
 
-    parts = [caption, hashtag_line]
-    if source_insight:
-        parts.append(source_insight)
+    return f"Post #{post_number}\n\n{caption}\n\n{hashtag_line}"
 
-    return "\n\n".join(parts)
+
+def _sort_key(quote_id):
+    """Numeric IDs (e.g. '0001') sort numerically; anything else falls
+    back to plain string sorting, after all numeric ones."""
+    quote_id = (quote_id or "").strip()
+    if quote_id.isdigit():
+        return (0, int(quote_id))
+    return (1, quote_id)
 
 
 def pick_next_tip(tips, state):
+    """Strictly sequential by Quote ID, skipping anything already used.
+    Once every quote has been used, the cycle resets and starts again
+    from the lowest Quote ID."""
     used = set(state.get("used_quote_ids", []))
     unused = [t for t in tips if t["Quote ID"] not in used]
 
     if not unused:
-        # Every quote has been used -- start a fresh cycle.
+        # Every quote has been used -- start a fresh cycle from the top.
         used = set()
         unused = tips
 
-    chosen = random.choice(unused)
+    unused_sorted = sorted(unused, key=lambda t: _sort_key(t["Quote ID"]))
+    chosen = unused_sorted[0]
+
     used.add(chosen["Quote ID"])
-    state["used_quote_ids"] = sorted(used)
+    state["used_quote_ids"] = sorted(used, key=_sort_key)
     return chosen, state
 
 
@@ -180,7 +198,7 @@ def generate_image(quote_text, quote_id):
     if not BACKGROUND_IMAGE.exists():
         raise FileNotFoundError(
             f"Background image not found at {BACKGROUND_IMAGE}. "
-            "Add the single Forjed background image there, named exactly 'background.jpg'."
+            "Add the single Forjed background image there, named exactly 'background.png'."
         )
     if not FONT_FILE.exists():
         raise FileNotFoundError(f"Font not found at {FONT_FILE}.")
