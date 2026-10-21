@@ -2,18 +2,18 @@ name: Daily Forjed Post
 
 on:
   schedule:
-    # 4:00 AM Pacific. GitHub Actions cron runs on fixed UTC time, and
-    # Pacific shifts between UTC-7 (PDT, roughly Mar-Nov) and UTC-8 (PST,
-    # roughly Nov-Mar). This is currently set for PDT (UTC-7), i.e. 11:00
-    # UTC = 4:00 AM PDT. When clocks fall back in November, this will
-    # start firing at 3:00 AM Pacific instead of 4:00 -- change the "11"
-    # below to "12" at that point (and back to "11" in spring) if you
-    # want to keep it pinned to exactly 4:00 AM local time year-round.
+    # Checks once a day at 4:00 AM Pacific (11:00 UTC during PDT; change the
+    # "11" to "12" when clocks fall back in November, and back in spring).
+    # The "Check 48-hour gap" step below makes the job actually post only
+    # every other day: on the in-between days it skips everything.
     - cron: "0 11 * * *"
-  workflow_dispatch: {}  # lets you trigger a run manually from the Actions tab
+  workflow_dispatch: {}  # manual runs from the Actions tab always post, ignoring the gap
 
 permissions:
   contents: write
+
+env:
+  MIN_HOURS_BETWEEN_POSTS: 46  # a 48-hour cadence, with slack for GitHub's cron delays
 
 jobs:
   post:
@@ -22,21 +22,54 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0  # need history to find the last auto-post
           persist-credentials: true
 
+      - name: Check 48-hour gap
+        id: gate
+        run: |
+          # Manual runs always go through.
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "Manual run - posting regardless of the gap."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          last_ts=$(git log --grep="^Auto-post:" -1 --format=%ct)
+          if [ -z "$last_ts" ]; then
+            echo "No previous auto-post found - posting."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          now_ts=$(date +%s)
+          hours_since=$(( (now_ts - last_ts) / 3600 ))
+          echo "Hours since last auto-post: $hours_since (minimum: $MIN_HOURS_BETWEEN_POSTS)"
+
+          if [ "$hours_since" -lt "$MIN_HOURS_BETWEEN_POSTS" ]; then
+            echo "Too soon - skipping today."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Python
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
       - name: Generate post image
+        if: steps.gate.outputs.skip != 'true'
         id: generate
         run: python scripts/generate_post.py
 
       - name: Commit and push generated image + updated state
+        if: steps.gate.outputs.skip != 'true'
         run: |
           git config user.name "forjed-bot"
           git config user.email "forjed-bot@users.noreply.github.com"
@@ -45,6 +78,7 @@ jobs:
           git push
 
       - name: Publish to Facebook and Instagram
+        if: steps.gate.outputs.skip != 'true'
         env:
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
